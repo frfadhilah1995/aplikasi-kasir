@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garuda v8.4 - NexusMind (Stable & No Alert)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #0c0e14; 
+            --bg-panel: rgba(22, 27, 34, 0.85); 
+            --border-color: rgba(139, 148, 158, 0.2);
+            --text-primary: #e6edf3; 
+            --text-secondary: #7d8590; 
+            --accent: #9f7aea; /* Purple */
+            --green: #3fb950; 
+            --red: #f85149;
+            --blue: #58a6ff;
+        }
+        body { 
+            font-family: 'Fira Code', monospace; 
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .panel { 
+            background-color: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+        }
+        .btn { 
+            background: var(--accent); color: #FFF; transition: all 0.3s ease; 
+            font-weight: 700; border: 1px solid var(--accent);
+            padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;
+        }
+        .btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 20px var(--accent); filter: brightness(1.2); }
+        .btn:disabled { background: var(--text-secondary); border-color: var(--text-secondary); cursor: not-allowed; opacity: 0.5; }
+        .btn-green { background: var(--green); border-color: var(--green); }
+        .btn-red { background: var(--red); border-color: var(--red); }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        .scanline { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; animation: scanline 25s linear infinite; }
+        @keyframes scanline { to { background-position: 0 100%; } }
+
+        @keyframes pulse-green { to { box-shadow: 0 0 0 8px rgba(63, 185, 80, 0); } }
+        .pulse-active { animation: pulse-green 1.5s infinite; box-shadow: 0 0 0 0 var(--green); }
+
+        /* **NEW**: Custom alert modal styles */
+        #alert-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 1.5rem 2rem;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--red);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(248, 81, 73, 0.5);
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+        #alert-modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body class="p-4 h-screen">
+    <div class="scanline"></div>
+    <!-- **NEW**: Custom alert modal element -->
+    <div id="alert-modal">
+        <p id="alert-message"></p>
+    </div>
+
+    <div class="grid grid-cols-12 grid-rows-12 gap-4 h-full">
+        <header class="col-span-12 row-span-1 panel rounded-xl p-3 flex justify-between items-center">
+            <h1 class="font-orbitron text-3xl text-white">GARUDA v8.4 <span class="text-accent">NexusMind</span></h1>
+            <div id="master-status" class="text-right font-orbitron text-white text-3xl">OFFLINE</div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="col-span-12 md:col-span-3 row-span-5 panel rounded-xl p-4 flex flex-col space-y-3">
+            <h2 class="font-orbitron text-lg text-white">SYSTEM CONTROL</h2>
+            <div>
+                <label for="gemini-api-key" class="text-sm text-slate-400">Gemini API Key (Wajib)</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-black/50 p-2 rounded-md border border-slate-600 focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Masukkan API Key Anda di sini">
+            </div>
+            <div>
+                <label for="start-url" class="text-sm text-slate-400">URL Awal</label>
+                <input type="url" id="start-url" class="w-full bg-black/50 p-2 rounded-md border border-slate-600 focus:outline-none focus:ring-2 focus:ring-accent" value="https://www.theverge.com">
+            </div>
+            <div>
+                 <label for="worker-count" class="text-sm text-slate-400">Pekerja Paralel (1-8)</label>
+                 <input type="number" id="worker-count" class="w-full bg-black/50 p-2 rounded-md border border-slate-600" value="4" min="1" max="8">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="start-btn" class="btn btn-green">AKTIFKAN</button>
+                <button id="stop-btn" class="btn btn-red" disabled>MATIKAN</button>
+            </div>
+        </div>
+        
+        <!-- Worker & Gemini Status -->
+        <div class="col-span-12 md:col-span-9 row-span-5 panel rounded-xl p-4 flex flex-col">
+            <div class="grid grid-cols-2 gap-4 h-full">
+                <div class="flex flex-col">
+                    <h2 class="font-orbitron text-lg text-white mb-2">WORKER SWARM STATUS</h2>
+                    <div id="worker-status-panel" class="flex-grow bg-black/50 p-2 rounded-md text-xs overflow-y-auto space-y-1"></div>
+                </div>
+                <div class="flex flex-col">
+                    <h2 class="font-orbitron text-lg text-white mb-2">GEMINI ADVISOR</h2>
+                    <div id="gemini-panel" class="flex-grow bg-black/50 p-3 rounded-md text-sm flex flex-col justify-center items-center">
+                        <div id="gemini-status" class="text-slate-400">IDLE</div>
+                        <div id="gemini-thought" class="text-xs text-center mt-2 text-accent">Menunggu data baru untuk analisis...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-span-12 row-span-6 panel rounded-xl p-4 grid grid-cols-2 gap-4">
+            <!-- Heuristics Engine -->
+            <div class="flex flex-col">
+                <h2 class="font-orbitron text-lg text-white mb-2">HEURISTICS ENGINE</h2>
+                <div class="flex-grow bg-black/50 rounded-md min-h-0">
+                    <pre><code id="heuristics-output" class="language-json text-xs h-full block overflow-y-auto p-3"></code></pre>
+                </div>
+                 <div class="flex justify-between text-sm mt-2 pt-2 border-t border-slate-700">
+                    <div class="flex justify-between"><span>Aturan Berevolusi:</span><span id="rules-evolved" class="font-bold text-white ml-2">0</span></div>
+                    <div class="flex justify-between"><span>Total Aturan:</span><span id="rules-total" class="font-bold text-white ml-2">0</span></div>
+                </div>
+            </div>
+
+            <!-- Ad Database -->
+            <div class="flex flex-col">
+                 <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-orbitron text-lg text-white">AD DATABASE</h2>
+                    <div class="text-right">
+                        <div><span>Ditemukan: </span><span id="ads-detected" class="font-bold text-white">0</span></div>
+                        <div><span>Dirayapi: </span><span id="pages-crawled" class="font-bold text-white">0</span></div>
+                        <div><span>Antrian: </span><span id="queue-size" class="font-bold text-white">0</span></div>
+                    </div>
+                </div>
+                <div class="flex-grow bg-black/50 rounded-md min-h-0">
+                    <pre><code id="json-output" class="language-json text-xs h-full block overflow-y-auto p-3">[]</code></pre>
+                </div>
+                <button id="export-json-btn" class="btn text-xs mt-2 self-end">Export JSON</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TEMPLATE ATURAN PARSER DEFAULT -->
+    <script id="default-heuristics" type="application/json">
+    {
+      "version": "1.4.0-genesis",
+      "description": "Aturan dasar untuk identifikasi iklan dan pelacak.",
+      "threshold": 10,
+      "rules": [
+        { "id": "url-keyword-block", "description": "Blokir URL dengan kata kunci iklan umum.", "score": 20, "type": "urlKeyword", "payload": ["doubleclick.net", "googleads", "googlesyndication", "adservice", "ads.pubmatic.com", "criteo", "taboola", "outbrain", "adnxs.com", "smartadserver"] },
+        { "id": "url-keyword-track", "description": "Skor URL dengan kata kunci pelacakan.", "score": 8, "type": "urlKeyword", "payload": ["analytics", "track", "pixel", "beacon", "stats"] },
+        { "id": "selector-keyword", "description": "Cari elemen dengan ID/class iklan.", "score": 10, "type": "elementSelector", "payload": ["[id*='ad-']", "[class*='ad-']", "[id*='banner']", "[class*='banner']", "[id*='sponsor']", "[class*='sponsor']"] },
+        { "id": "image-dimensions", "description": "Identifikasi gambar dimensi iklan standar.", "score": 5, "type": "imageDimension", "payload": ["300x250", "728x90", "160x600", "320x50", "300x600", "970x250"] },
+        { "id": "iframe-sandbox", "description": "Iframe yang disandbox seringkali iklan.", "score": 5, "type": "elementAttribute", "payload": { "selector": "iframe", "attribute": "sandbox" } }
+      ]
+    }
+    </script>
+    
+    <!-- SCRIPT UNTUK WEB WORKER -->
+    <script id="worker-script" type="text/js-worker">
+    const WORKER_CONFIG = {
+        CORS_PROXY_URL: `https://api.allorigins.win/raw?url=`,
+    };
+
+    const AdIdentifier = {
+        evaluate(element, baseUrl, ruleset) {
+            let score = 0;
+            const triggeredRules = [];
+            
+            ruleset.rules.forEach(rule => {
+                let match = false;
+                try {
+                    switch(rule.type) {
+                        case 'urlKeyword':
+                            const url = element.href || element.src;
+                            if (url && rule.payload.some(keyword => url.includes(keyword))) match = true;
+                            break;
+                        case 'elementSelector':
+                            if (rule.payload.some(selector => element.matches(selector))) match = true;
+                            break;
+                        case 'elementAttribute':
+                            if(element.matches(rule.payload.selector) && element.hasAttribute(rule.payload.attribute)) match = true;
+                            break;
+                        case 'imageDimension':
+                             if (element.tagName === 'IMG') {
+                                const dim = `${element.naturalWidth}x${element.naturalHeight}`;
+                                if (rule.payload.includes(dim)) match = true;
+                             }
+                            break;
+                    }
+                } catch (e) { /* Abaikan selector tidak valid */ }
+
+                if(match) {
+                    score += rule.score;
+                    triggeredRules.push({id: rule.id, score: rule.score});
+                }
+            });
+
+            if (score >= ruleset.threshold) {
+               const adUrl = element.href || element.src;
+               return {
+                   isAd: true,
+                   url: adUrl ? new URL(adUrl, baseUrl).href : 'inline/unknown',
+                   score,
+                   triggeredRules,
+                   snippet: element.outerHTML 
+               };
+            }
+            return { isAd: false };
+        }
+    };
+    
+    self.onmessage = async function(e) {
+        const { type, payload } = e.data;
+
+        if (type === 'CRAWL') {
+            const { url, ruleset } = payload;
+            postMessage({ type: 'STATUS', payload: { status: 'CRAWLING', url } });
+
+            try {
+                const proxyUrl = `${WORKER_CONFIG.CORS_PROXY_URL}${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Proxy Error ${response.status} for ${url}`);
+                
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+
+                const foundAds = [];
+                const foundLinks = new Set();
+                
+                doc.querySelectorAll('a, iframe, script, img').forEach(el => {
+                    const adResult = AdIdentifier.evaluate(el, url, ruleset);
+                    if(adResult.isAd) foundAds.push(adResult);
+                    
+                    if(el.tagName === 'A' && el.href) {
+                        try {
+                            const newUrl = new URL(el.href, url);
+                            if(newUrl.protocol.startsWith('http')) foundLinks.add(newUrl.href);
+                        } catch(e) {/* abaikan url tidak valid */}
+                    }
+                });
+                
+                postMessage({ type: 'RESULT', payload: { url, ads: foundAds, links: Array.from(foundLinks) } });
+            } catch (error) {
+                postMessage({ type: 'ERROR', payload: { url, message: error.message } });
+            }
+        }
+    };
+    </script>
+
+
+    <script type="module">
+        // --- MASTER SCRIPT (Main Thread) ---
+
+        const CONFIG = {
+            LEARN_TRIGGER_COUNT: 10,
+            GEMINI_MODEL: 'gemini-2.0-flash:generateContent', 
+        };
+
+        const UI = {
+            init() {
+                Object.assign(this, {
+                    masterStatus: document.getElementById('master-status'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key'),
+                    startUrlInput: document.getElementById('start-url'),
+                    workerCountInput: document.getElementById('worker-count'),
+                    startBtn: document.getElementById('start-btn'),
+                    stopBtn: document.getElementById('stop-btn'),
+                    queueSize: document.getElementById('queue-size'),
+                    pagesCrawled: document.getElementById('pages-crawled'),
+                    adsDetected: document.getElementById('ads-detected'),
+                    rulesEvolved: document.getElementById('rules-evolved'),
+                    rulesTotal: document.getElementById('rules-total'),
+                    workerStatusPanel: document.getElementById('worker-status-panel'),
+                    geminiStatus: document.getElementById('gemini-status'),
+                    geminiThought: document.getElementById('gemini-thought'),
+                    heuristicsOutput: document.getElementById('heuristics-output'),
+                    jsonOutput: document.getElementById('json-output'),
+                    exportBtn: document.getElementById('export-json-btn'),
+                    alertModal: document.getElementById('alert-modal'), // **NEW**
+                    alertMessage: document.getElementById('alert-message') // **NEW**
+                });
+            },
+            // **NEW**: Custom, non-blocking alert function
+            showAlert(message) {
+                this.alertMessage.textContent = message;
+                this.alertModal.classList.add('visible');
+                setTimeout(() => {
+                    this.alertModal.classList.remove('visible');
+                }, 2500);
+            },
+            logToWorker(workerId, message, colorClass) {
+                let workerEl = document.getElementById(`worker-${workerId}`);
+                if (!workerEl) {
+                    workerEl = document.createElement('div');
+                    workerEl.id = `worker-${workerId}`;
+                    workerEl.innerHTML = `<div class="flex items-center"><span class="w-3 h-3 rounded-full mr-2"></span><span class="font-bold text-slate-300">PEKERJA ${workerId}:</span><span class="ml-2 truncate" style="max-width: 200px;"></span></div>`;
+                    this.workerStatusPanel.prepend(workerEl);
+                }
+                workerEl.querySelector('.truncate').textContent = message;
+                const statusDot = workerEl.querySelector('.w-3.h-3');
+                statusDot.className = `w-3 h-3 rounded-full mr-2 ${colorClass}`;
+                if (colorClass === 'bg-green-500') statusDot.classList.add('pulse-active');
+                else statusDot.classList.remove('pulse-active');
+            },
+            setSystemState(isOnline) {
+                this.startBtn.disabled = isOnline;
+                this.stopBtn.disabled = !isOnline;
+                [this.startUrlInput, this.workerCountInput, this.geminiApiKeyInput].forEach(el => el.disabled = isOnline);
+                this.masterStatus.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
+                this.masterStatus.style.color = isOnline ? 'var(--green)' : 'var(--red)';
+            },
+            updateStats(stats) {
+                this.queueSize.textContent = stats.queue.toLocaleString();
+                this.pagesCrawled.textContent = stats.crawled.toLocaleString();
+                this.adsDetected.textContent = stats.ads.toLocaleString();
+                this.rulesEvolved.textContent = stats.evolved.toLocaleString();
+                this.rulesTotal.textContent = stats.totalRules.toLocaleString();
+            },
+            updateHeuristicsDisplay: (ruleset) => UI.heuristicsOutput.textContent = JSON.stringify(ruleset, null, 2),
+            updateJsonOutput: (db) => UI.jsonOutput.textContent = JSON.stringify(db, null, 2),
+            updateGeminiStatus(status, thought) {
+                this.geminiStatus.textContent = status;
+                this.geminiThought.textContent = thought;
+            },
+            resetUI() {
+                this.workerStatusPanel.innerHTML = '';
+                this.updateJsonOutput([]);
+                this.updateStats({ queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: 0 });
+                this.updateGeminiStatus("IDLE", "Menunggu data baru untuk analisis...");
+            }
+        };
+
+        const AdDatabase = {
+            records: [],
+            learningBuffer: [],
+            add(record) { this.records.push(record); this.learningBuffer.push(record); UI.updateJsonOutput(this.records); },
+            clear() { this.records = []; this.learningBuffer = []; },
+            getLearningData() { const data = [...this.learningBuffer]; this.learningBuffer = []; return data; },
+            export() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.records, null, 2));
+                const a = document.createElement('a');
+                a.setAttribute("href", dataStr);
+                a.setAttribute("download", "garuda_ad_database_v8.4.json");
+                document.body.appendChild(a); a.click(); a.remove();
+            }
+        };
+
+        const GeminiAdvisor = {
+            isLearning: false, apiKey: null,
+            async analyzeAndGenerateRule(adSnippets) {
+                if (this.isLearning || !this.apiKey) return null;
+                this.isLearning = true;
+                UI.updateGeminiStatus("ANALYZING", `Menganalisis ${adSnippets.length} cuplikan iklan...`);
+                const prompt = `You are an expert adblock rule creator. Analyze these HTML snippets of ads and find a new, common pattern. Generate ONE new, effective heuristic rule in the specified JSON format. Do not include ANY text, notes, or markdown outside the single, clean JSON object.
+HTML Snippets:
+${adSnippets.map(s => `Snippet:\n${s}\n---\n`).join('\n')}
+Rule format: {"id": "evolved-rule-TIMESTAMP", "description": "A concise description of the new pattern", "score": 15, "type": "urlKeyword|elementSelector|elementAttribute", "payload": ["value"] or {"selector": "value", "attribute": "value"}}`;
+                try {
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}?key=${this.apiKey}`;
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                    if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || response.statusText}`); }
+                    const result = await response.json();
+                    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) { throw new Error("Respons API tidak valid atau tidak mengandung teks."); }
+                    const newRuleText = result.candidates[0].content.parts[0].text;
+                    const jsonMatch = newRuleText.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) throw new Error("Respons AI tidak mengandung JSON yang valid.");
+                    const newRule = JSON.parse(jsonMatch[0]);
+                    newRule.id = newRule.id.replace('TIMESTAMP', Date.now());
+                    UI.updateGeminiStatus("SUCCESS", `Aturan baru '${newRule.id}' dibuat!`);
+                    return newRule;
+                } catch (e) {
+                    console.error("GeminiAdvisor Error:", e);
+                    UI.updateGeminiStatus("ERROR", `Gagal menghasilkan aturan: ${e.message}`);
+                    return null;
+                } finally {
+                    this.isLearning = false;
+                    setTimeout(() => UI.updateGeminiStatus("IDLE", "Menunggu data baru..."), 5000);
+                }
+            }
+        };
+
+        const HeuristicsEngine = {
+            ruleset: {},
+            loadGenesisRules() { const rulesJSON = document.getElementById('default-heuristics').textContent; this.ruleset = JSON.parse(rulesJSON); UI.updateHeuristicsDisplay(this.ruleset); },
+            evolve(newRule) { if (!this.ruleset.rules.find(r => r.id === newRule.id)) { this.ruleset.rules.push(newRule); UI.updateHeuristicsDisplay(this.ruleset); return true; } return false; },
+            getRuleset: () => JSON.parse(JSON.stringify(HeuristicsEngine.ruleset))
+        };
+
+        const MasterController = {
+            isRunning: false, workers: [], queue: new Set(), visited: new Set(), idleWorkers: [],
+            stats: { queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: 0 },
+            cognitiveLoopInterval: null,
+
+            start(startUrl, workerCount, apiKey) {
+                if (this.isRunning) return;
+                // **FIXED**: Using custom alert instead of browser alert
+                if (!apiKey || !startUrl) { UI.showAlert("API Key dan URL Awal wajib diisi!"); return; }
+
+                this.isRunning = true;
+                GeminiAdvisor.apiKey = apiKey;
+                this.queue = new Set([startUrl]);
+                this.visited.clear(); this.workers = []; this.idleWorkers = [];
+                AdDatabase.clear();
+                UI.resetUI();
+                HeuristicsEngine.loadGenesisRules();
+                this.stats = { queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: HeuristicsEngine.getRuleset().rules.length };
+                UI.updateStats(this.stats);
+                UI.setSystemState(true);
+
+                const workerCode = document.getElementById('worker-script').textContent;
+                const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(workerBlob);
+
+                for (let i = 1; i <= workerCount; i++) {
+                    const worker = new Worker(workerUrl);
+                    worker.id = i;
+                    worker.onmessage = (e) => this.handleWorkerMessage(e.data, worker);
+                    this.workers.push(worker);
+                    this.idleWorkers.push(worker);
+                    UI.logToWorker(i, "IDLE", 'bg-slate-500');
+                }
+                URL.revokeObjectURL(workerUrl);
+                this.cognitiveLoopInterval = setInterval(() => this.cognitiveLoop(), 10000);
+                this.dispatchTasks();
+            },
+
+            stop() {
+                if (!this.isRunning) return;
+                this.isRunning = false;
+                this.workers.forEach(worker => worker.terminate());
+                this.workers = []; this.idleWorkers = [];
+                clearInterval(this.cognitiveLoopInterval);
+                UI.setSystemState(false);
+            },
+
+            dispatchTasks() {
+                while (this.idleWorkers.length > 0 && this.queue.size > 0) {
+                    const worker = this.idleWorkers.shift();
+                    const url = this.queue.values().next().value;
+                    this.queue.delete(url); this.visited.add(url);
+                    worker.postMessage({ type: 'CRAWL', payload: { url, ruleset: HeuristicsEngine.getRuleset() } });
+                }
+                this.stats.queue = this.queue.size;
+                UI.updateStats(this.stats);
+            },
+
+            handleWorkerMessage(data, worker) {
+                const { type, payload } = data;
+                let isIdle = true;
+                switch(type) {
+                    case 'STATUS':
+                        isIdle = false;
+                        UI.logToWorker(worker.id, new URL(payload.url).hostname, 'bg-green-500');
+                        break;
+                    case 'RESULT':
+                        this.stats.crawled++;
+                        payload.ads.forEach(ad => { this.stats.ads++; AdDatabase.add(ad); });
+                        payload.links.forEach(link => { if (!this.visited.has(link)) this.queue.add(link); });
+                        UI.logToWorker(worker.id, `Selesai: ${new URL(payload.url).hostname}`, 'bg-blue-500');
+                        break;
+                    case 'ERROR':
+                        console.error(`Worker ${worker.id} Error:`, payload.message);
+                        UI.logToWorker(worker.id, `Error: ${new URL(payload.url).hostname}`, 'bg-red-500');
+                        break;
+                }
+                if(isIdle) { this.idleWorkers.push(worker); this.dispatchTasks(); }
+                 UI.updateStats(this.stats);
+            },
+            
+            async cognitiveLoop() {
+                if (AdDatabase.learningBuffer.length >= CONFIG.LEARN_TRIGGER_COUNT) {
+                    const learningData = AdDatabase.getLearningData();
+                    const snippets = learningData.map(d => d.snippet).filter(Boolean);
+                    if(snippets.length === 0) return;
+                    try {
+                        const newRule = await GeminiAdvisor.analyzeAndGenerateRule(snippets);
+                        if (newRule && HeuristicsEngine.evolve(newRule)) {
+                           this.stats.evolved++;
+                           this.stats.totalRules = HeuristicsEngine.getRuleset().rules.length;
+                           UI.updateStats(this.stats);
+                        }
+                    } catch (e) { console.error("Gagal menjalankan siklus kognitif:", e); }
+                }
+            }
+        };
+
+        const App = {
+            init() {
+                UI.init();
+                HeuristicsEngine.loadGenesisRules();
+                UI.stats.totalRules = HeuristicsEngine.getRuleset().rules.length;
+                UI.updateStats(UI.stats);
+                UI.startBtn.addEventListener('click', () => MasterController.start( UI.startUrlInput.value.trim(), parseInt(UI.workerCountInput.value, 10), UI.geminiApiKeyInput.value.trim() ));
+                UI.stopBtn.addEventListener('click', () => MasterController.stop());
+                UI.exportBtn.addEventListener('click', () => AdDatabase.export());
+            }
+        };
+        App.init();
+    </script>
+</body>
+</html>
