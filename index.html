@@ -1,450 +1,691 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Garuda v8.4 - NexusMind (Production)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg-main: #0c0e14;
-      --bg-panel: rgba(22, 27, 34, 0.85);
-      --border-color: rgba(139, 148, 158, 0.2);
-      --text-primary: #e6edf3;
-      --text-secondary: #7d8590;
-      --accent: #9f7aea;
-      --green: #3fb950;
-      --red: #f85149;
-      --blue: #58a6ff;
-    }
-    body { font-family: 'Fira Code', monospace; background: var(--bg-main); color: var(--text-primary); overflow: hidden; }
-    .font-orbitron { font-family: 'Orbitron', sans-serif; }
-    .panel { background: var(--bg-panel); border: 1px solid var(--border-color); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 4px 30px rgba(0,0,0,0.4);}
-    .btn { background: var(--accent); color: #FFF; transition: all 0.3s; font-weight: 700; border: 1px solid var(--accent); padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer;}
-    .btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 20px var(--accent); filter: brightness(1.2); }
-    .btn:disabled { background: var(--text-secondary); border-color: var(--text-secondary); cursor: not-allowed; opacity: 0.5; }
-    .btn-green { background: var(--green); border-color: var(--green); }
-    .btn-red { background: var(--red); border-color: var(--red); }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
-    .scanline { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 2px; animation: scanline 1.5s linear infinite;}
-    @keyframes scanline { to { background-position: 0 100%; } }
-    @keyframes pulse-green { to { box-shadow: 0 0 0 8px rgba(63, 185, 80, 0); } }
-    .pulse-active { animation: pulse-green 1.5s infinite; box-shadow: 0 0 0 0 var(--green); }
-    #alert-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 1.5rem 2rem; background: var(--bg-panel); border: 1px solid var(--red); color: var(--text-primary); border-radius: 0.5rem; z-index: 1000; box-shadow: 0 0 30px rgba(248, 81, 73, 0.5); transition: opacity 0.3s, visibility 0.3s; opacity: 0; visibility: hidden;}
-    #alert-modal.visible { opacity: 1; visibility: visible; }
-  </style>
-</head>
-<body class="p-4 h-screen">
-  <div class="scanline"></div>
-  <div id="alert-modal"><p id="alert-message"></p></div>
-  <div class="grid grid-cols-12 grid-rows-12 gap-4 h-full">
-    <header class="col-span-12 row-span-1 panel rounded-xl p-3 flex justify-between items-center">
-      <h1 class="font-orbitron text-3xl text-white">GARUDA v8.4 <span class="text-accent">NexusMind</span></h1>
-      <div id="master-status" class="text-right font-orbitron text-white text-3xl">OFFLINE</div>
-    </header>
-    <div class="col-span-12 md:col-span-3 row-span-5 panel rounded-xl p-4 flex flex-col space-y-3">
-      <h2 class="font-orbitron text-lg text-white">SYSTEM CONTROL</h2>
-      <div>
-        <label for="gemini-api-key" class="text-sm text-slate-400">Gemini API Key (Wajib)</label>
-        <input type="password" id="gemini-api-key" autocomplete="off" class="w-full bg-black/50 p-2 rounded-md border border-slate-600 focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Masukkan API Key Anda di sini">
-      </div>
-      <div>
-        <label for="start-url" class="text-sm text-slate-400">URL Awal</label>
-        <input type="url" id="start-url" class="w-full bg-black/50 p-2 rounded-md border border-slate-600 focus:outline-none focus:ring-2 focus:ring-accent" value="https://www.theverge.com">
-      </div>
-      <div>
-        <label for="worker-count" class="text-sm text-slate-400">Pekerja Paralel (1-8)</label>
-        <input type="number" id="worker-count" class="w-full bg-black/50 p-2 rounded-md border border-slate-600" value="4" min="1" max="8">
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button id="start-btn" class="btn btn-green">AKTIFKAN</button>
-        <button id="stop-btn" class="btn btn-red" disabled>MATIKAN</button>
-      </div>
-    </div>
-    <div class="col-span-12 md:col-span-9 row-span-5 panel rounded-xl p-4 flex flex-col">
-      <div class="grid grid-cols-2 gap-4 h-full">
-        <div class="flex flex-col">
-          <h2 class="font-orbitron text-lg text-white mb-2">WORKER SWARM STATUS</h2>
-          <div id="worker-status-panel" class="flex-grow bg-black/50 p-2 rounded-md text-xs overflow-y-auto space-y-1"></div>
-        </div>
-        <div class="flex flex-col">
-          <h2 class="font-orbitron text-lg text-white mb-2">GEMINI ADVISOR</h2>
-          <div id="gemini-panel" class="flex-grow bg-black/50 p-3 rounded-md text-sm flex flex-col justify-center items-center">
-            <div id="gemini-status" class="text-slate-400">IDLE</div>
-            <div id="gemini-thought" class="text-xs text-center mt-2 text-accent">Menunggu data baru untuk analisis...</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-span-12 row-span-6 panel rounded-xl p-4 grid grid-cols-2 gap-4">
-      <div class="flex flex-col">
-        <h2 class="font-orbitron text-lg text-white mb-2">HEURISTICS ENGINE</h2>
-        <div class="flex-grow bg-black/50 rounded-md min-h-0">
-          <pre><code id="heuristics-output" class="language-json text-xs h-full block overflow-y-auto p-3"></code></pre>
-        </div>
-        <div class="flex justify-between text-sm mt-2 pt-2 border-t border-slate-700">
-          <div class="flex justify-between"><span>Aturan Berevolusi:</span><span id="rules-evolved" class="font-bold text-white ml-2">0</span></div>
-          <div class="flex justify-between"><span>Total Aturan:</span><span id="rules-total" class="font-bold text-white ml-2">0</span></div>
-        </div>
-      </div>
-      <div class="flex flex-col">
-        <div class="flex justify-between items-center mb-2">
-          <h2 class="font-orbitron text-lg text-white">AD DATABASE</h2>
-          <div class="text-right">
-            <div><span>Ditemukan: </span><span id="ads-detected" class="font-bold text-white">0</span></div>
-            <div><span>Dirayapi: </span><span id="pages-crawled" class="font-bold text-white">0</span></div>
-            <div><span>Antrian: </span><span id="queue-size" class="font-bold text-white">0</span></div>
-          </div>
-        </div>
-        <div class="flex-grow bg-black/50 rounded-md min-h-0">
-          <pre><code id="json-output" class="language-json text-xs h-full block overflow-y-auto p-3">[]</code></pre>
-        </div>
-        <button id="export-json-btn" class="btn text-xs mt-2 self-end">Export JSON</button>
-      </div>
-    </div>
-  </div>
-  <script id="default-heuristics" type="application/json">
-  {
-    "version": "1.4.0-genesis",
-    "description": "Aturan dasar untuk identifikasi iklan dan pelacak.",
-    "threshold": 10,
-    "rules": [
-      { "id": "url-keyword-block", "description": "Blokir URL dengan kata kunci iklan umum.", "score": 20, "type": "urlKeyword", "payload": ["doubleclick.net", "googleads", "googlesyndication", "adsystem", "adservice"] },
-      { "id": "url-keyword-track", "description": "Skor URL dengan kata kunci pelacakan.", "score": 8, "type": "urlKeyword", "payload": ["analytics", "track", "pixel", "beacon", "stats"] },
-      { "id": "selector-keyword", "description": "Cari elemen dengan ID/class iklan.", "score": 10, "type": "elementSelector", "payload": ["[id*='ad-']", "[class*='ad-']", "[id*='banner']", "[class*='banner']"] },
-      { "id": "image-dimensions", "description": "Identifikasi gambar dimensi iklan standar.", "score": 5, "type": "imageDimension", "payload": ["300x250", "728x90", "160x600", "320x50", "300x600", "336x280"] },
-      { "id": "iframe-sandbox", "description": "Iframe yang disandbox seringkali iklan.", "score": 5, "type": "elementAttribute", "payload": { "selector": "iframe", "attribute": "sandbox" } }
-    ]
-  }
-  </script>
-  <script id="worker-script" type="text/js-worker">
-  const WORKER_CONFIG = { CORS_PROXY_URL: "https://api.allorigins.win/raw?url=" };
-  const AdIdentifier = {
-    evaluate(element, baseUrl, ruleset) {
-      let score = 0;
-      const triggeredRules = [];
-      ruleset.rules.forEach(rule => {
-        let match = false;
-        try {
-          switch(rule.type) {
-            case 'urlKeyword':
-              const url = element.href || element.src;
-              if (url && rule.payload.some(keyword => url.includes(keyword))) match = true;
-              break;
-            case 'elementSelector':
-              if (rule.payload.some(selector => element.matches(selector))) match = true;
-              break;
-            case 'elementAttribute':
-              if(element.matches(rule.payload.selector) && element.hasAttribute(rule.payload.attribute)) match = true;
-              break;
-            case 'imageDimension':
-              if (element.tagName === 'IMG') {
-                const dim = `${element.naturalWidth}x${element.naturalHeight}`;
-                if (rule.payload.includes(dim)) match = true;
-              }
-              break;
-          }
-        } catch (e) {}
-        if(match) {
-          score += rule.score;
-          triggeredRules.push({id: rule.id, score: rule.score});
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse Ad-Intellect v9.1 - The Phoenix Project</title>
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* General Styling */
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e7eb; }
+        .glass-card { background: rgba(23, 23, 23, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .log-entry { transition: all 0.2s ease; border-left: 2px solid transparent; }
+        .log-entry:hover { background-color: rgba(255,255,255,0.05); }
+        /* Animations */
+        .blinking { animation: blink 1.5s ease-in-out infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
-      });
-      if (score >= ruleset.threshold) {
-        const adUrl = element.href || element.src;
-        return {
-          isAd: true,
-          url: adUrl ? new URL(adUrl, baseUrl).href : 'inline/unknown',
-          score,
-          triggeredRules,
-          snippet: element.outerHTML 
+        /* Status Indicators */
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; transition: background-color 0.3s; display: inline-block; }
+        .status-good { background-color: #22c55e; }
+        .status-bad { background-color: #ef4444; }
+        .status-working { background-color: #f59e0b; animation: blink 1s infinite; }
+        .status-idle { background-color: #6b7280; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        /* Button States */
+        .btn-busy { cursor: not-allowed; opacity: 0.7; }
+        .btn-busy .fa-sync-alt { animation: fa-spin 1.5s linear infinite; }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app-container" class="container mx-auto p-4 max-w-screen-2xl space-y-6">
+        <!-- Header -->
+        <header class="text-center py-4">
+            <h1 class="text-4xl font-bold text-white tracking-wider">SYNAPSE AD-INTELLECT</h1>
+            <p class="text-gray-400 mt-2">v9.1 - The Phoenix Project (Optimized)</p>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Left Control Column -->
+            <div id="left-column" class="lg:col-span-1 space-y-6"></div>
+
+            <!-- Right Main Column -->
+            <div id="right-column" class="lg:col-span-3 space-y-6"></div>
+        </div>
+    </div>
+    
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50"></div>
+
+
+    <script type="module">
+        // ===================================================================================
+        // CORE ARCHITECTURE - V9.1
+        // Changelog v9.1:
+        // - [ROBUSTNESS] Expanded and updated the proxy list to 20 reliable alternatives.
+        // - [ROBUSTNESS] Enhanced error handling for Gemini API responses.
+        // - [OPTIMIZATION] Added more detailed comments for clarity.
+        // - [BUGFIX] Minor stability improvements in asynchronous operations.
+        // ===================================================================================
+
+        // --- 1. CONFIGURATION MODULE ---
+        const CONFIG = {
+            WORKERS_PER_SQUAD: 5, DISCOVERY_INTERVAL: 120000, TICK_INTERVAL: 500,
+            DEEP_ANALYSIS_THRESHOLD: 100, PROXY_TEST_URL: 'https://www.google.com/generate_204', PROXY_TEST_TIMEOUT: 5000,
+            DB_NAME: "SynapseDB_v9_1",
+            // [OPTIMASI] Daftar proxy diperbarui dan diperluas dengan 20 opsi cadangan yang lebih andal
+            // untuk memastikan kelangsungan operasional dan mengurangi titik kegagalan tunggal.
+            PROXY_LIST: [
+                'https://api.allorigins.win/raw?url=',
+                'https://proxy.cors.sh/',
+                'https://corsproxy.io/?',
+                'https://cors.eu.org/',
+                'https://api.codetabs.com/v1/proxy?quest=',
+                'https://thingproxy.freeboard.io/fetch/',
+                'https://cors-proxy.fringe.zone/',
+                // Tambahan Proxy Baru
+                'https://cors-anywhere.web.app/cors-anywhere/', // Alternatif modern untuk herokuapp
+                'https://super-cors.dev/',
+                'https://cors.zervice.no/?url=',
+                'https://jsonp.afeld.me/?url=',
+                'https://api.netsepio.com/api/v1/services/cors-proxy/',
+                'https://yacdn.org/proxy/',
+                'https://caching-cors-anywhere.herokuapp.com/',
+                'https://cors-everywhere.herokuapp.com/',
+                'https://cors.moviedatabase.workers.dev/?url=',
+                'https://worker-proxy.yousefed.workers.dev/?',
+                'https://fetch-proxy.deta.dev/',
+                'https://cors.bridged.cc/',
+                'https://cors-get.herokuapp.com/'
+            ],
+            FILTER_LISTS: {
+                'EasyList': { url: 'https://easylist.to/easylist/easylist.txt' }, 'EasyPrivacy': { url: 'https://easylist.to/easylist/easyprivacy.txt' },
+                'uBlock Ads': { url: 'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt' },
+                'uBlock Privacy': { url: 'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt' },
+                'AdGuard DNS': { url: 'https://adguardteam.github.io/AdGuardSDNSFilter/filters/filters.txt' },
+                'OISD Full': { url: 'https://abp.oisd.nl/' },
+            },
+            SQUADS: {
+                manual: { name: 'SQUAD PENJELAJAH', icon: 'fa-crosshairs', color: 'blue' },
+                discovery: { name: 'SQUAD PENEMU', icon: 'fa-search-location', color: 'purple' },
+                youtube: { name: 'SQUAD YOUTUBE', icon: 'fa-youtube', color: 'red' },
+            },
         };
-      }
-      return { isAd: false };
-    }
-  };
-  self.onmessage = async function(e) {
-    const { type, payload } = e.data;
-    if (type === 'CRAWL') {
-      const { url, ruleset } = payload;
-      postMessage({ type: 'STATUS', payload: { status: 'CRAWLING', url } });
-      try {
-        const proxyUrl = `${WORKER_CONFIG.CORS_PROXY_URL}${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`Proxy Error ${response.status} for ${url}`);
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        const foundAds = [];
-        const foundLinks = new Set();
-        doc.querySelectorAll('a, iframe, script, img').forEach(el => {
-          const adResult = AdIdentifier.evaluate(el, url, ruleset);
-          if(adResult.isAd) foundAds.push(adResult);
-          if(el.tagName === 'A' && el.href) {
-            try {
-              const newUrl = new URL(el.href, url);
-              if(newUrl.protocol.startsWith('http')) foundLinks.add(newUrl.href);
-            } catch(e) {}
-          }
+
+        // --- 2. UI MANAGER MODULE ---
+        // Responsible for all DOM manipulations. No other module should touch the DOM.
+        const UI_Manager = {
+            elements: {},
+            initialize() {
+                // Build and inject the main layout
+                const leftCol = document.getElementById('left-column');
+                const rightCol = document.getElementById('right-column');
+                
+                leftCol.innerHTML = `
+                    <div class="glass-card p-4 rounded-lg">${this.getControlCardHTML()}</div>
+                    <div class="glass-card p-4 rounded-lg">${this.getDatabaseCardHTML()}</div>
+                    <div class="glass-card p-4 rounded-lg">${this.getProxyCardHTML()}</div>
+                `;
+                rightCol.innerHTML = `
+                    <div class="glass-card p-4 rounded-lg">${this.getStatsAndFiltersHTML()}</div>
+                    <div id="squads-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        ${Object.keys(CONFIG.SQUADS).map(key => this.getSquadCardHTML(key)).join('')}
+                    </div>
+                `;
+
+                // Cache all important DOM elements
+                this.elements = {
+                    apiKey: document.getElementById('api-key'), apiStatusIndicator: document.getElementById('api-status-indicator'),
+                    apiStatusText: document.getElementById('api-status-text'), urlInput: document.getElementById('url-input'),
+                    addUrlBtn: document.getElementById('add-url-btn'), startBtn: document.getElementById('start-btn'),
+                    stopBtn: document.getElementById('stop-btn'), clearBtn: document.getElementById('clear-btn'),
+                    viewDbBtn: document.getElementById('view-db-btn'), refreshFiltersBtn: document.getElementById('refresh-filters-btn'),
+                    modalContainer: document.getElementById('modal-container'), squads: {},
+                    proxyManagerStatus: document.getElementById('proxy-manager-status'),
+                    workersCounter: document.getElementById('workers-counter'), queueCounter: document.getElementById('queue-counter'),
+                    processedCounter: document.getElementById('processed-counter'), rulesCounter: document.getElementById('rules-counter'),
+                    filterListsStatus: document.getElementById('filter-lists-status')
+                };
+                Object.keys(CONFIG.SQUADS).forEach(key => {
+                    this.elements.squads[key] = {
+                        workers: document.getElementById(`squad-workers-${key}`),
+                        queue: document.getElementById(`squad-queue-${key}`),
+                        log: document.getElementById(`log-${key}`),
+                        card: document.getElementById(`squad-card-${key}`),
+                    };
+                });
+            },
+            getControlCardHTML: () => `
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">Kontrol & Status</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center"><label for="api-key" class="block text-sm font-medium text-gray-400">Gemini API Key</label><div id="api-status-indicator" class="status-dot status-idle"></div></div>
+                        <input type="password" id="api-key" class="mt-1 w-full bg-gray-900/50 border border-gray-600 rounded-md p-2 text-white" placeholder="Opsional, untuk Deep Analysis">
+                        <p id="api-status-text" class="text-xs text-gray-500 mt-1 h-4"></p>
+                    </div>
+                    <div>
+                        <label for="url-input" class="block text-sm font-medium text-gray-400">Input URL Manual</label>
+                        <div class="flex mt-1"><input type="url" id="url-input" class="w-full bg-gray-900/50 border border-gray-600 rounded-l-md p-2" placeholder="https://example.com"><button id="add-url-btn" class="bg-blue-600 hover:bg-blue-700 px-3 rounded-r-md"><i class="fas fa-plus"></i></button></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-md transition shadow-lg"><i class="fas fa-play"></i> Mulai</button>
+                        <button id="stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-md transition shadow-lg" disabled><i class="fas fa-stop"></i> Berhenti</button>
+                    </div>
+                </div>`,
+            getDatabaseCardHTML: () => `
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">Database</h2>
+                <div class="space-y-3">
+                     <button id="view-db-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-md flex items-center justify-center gap-2"><i class="fas fa-eye"></i> <span>Lihat Aturan</span></button>
+                     <button id="refresh-filters-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 py-2 rounded-md flex items-center justify-center gap-2"><i class="fas fa-sync-alt"></i> <span>Segarkan Filter</span></button>
+                     <button id="clear-btn" class="w-full bg-red-800 hover:bg-red-700 py-2 rounded-md text-sm flex items-center justify-center gap-2"><i class="fas fa-skull-crossbones"></i> <span>Hapus Arsip</span></button>
+                </div>`,
+            getProxyCardHTML: () => `
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">Proxy Manager</h2>
+                <div id="proxy-manager-status" class="space-y-2 text-sm max-h-48 overflow-y-auto"></div>`,
+            getStatsAndFiltersHTML: () => `
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2 mb-4">Statistik & Daftar Filter</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="global-stats-container" class="grid grid-cols-2 gap-4 text-center font-mono">
+                        <div><p class="text-gray-400 text-sm">Pekerja Aktif</p><p id="workers-counter" class="text-2xl font-bold text-blue-400">0/0</p></div>
+                        <div><p class="text-gray-400 text-sm">Total Antrean</p><p id="queue-counter" class="text-2xl font-bold text-yellow-400">0</p></div>
+                        <div><p class="text-gray-400 text-sm">URL Diproses</p><p id="processed-counter" class="text-2xl font-bold text-green-400">0</p></div>
+                        <div><p class="text-gray-400 text-sm">Total Aturan</p><p id="rules-counter" class="text-2xl font-bold text-purple-400">0</p></div>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                         <h3 class="font-semibold text-gray-300 mb-2">Sumber Filter Aktif</h3>
+                         <div id="filter-lists-status" class="space-y-1 max-h-24 overflow-y-auto">${Object.entries(CONFIG.FILTER_LISTS).map(([name, data]) => `
+                            <div id="filter-status-${name.replace(/\s+/g, '')}" class="flex justify-between items-center text-xs"><div><span class="status-dot status-idle mr-2"></span>${name}</div><a href="${data.url}" target="_blank" class="text-blue-400 hover:underline truncate">${new URL(data.url).hostname}</a></div>`).join('')}
+                         </div>
+                    </div>
+                </div>`,
+            getSquadCardHTML: (key) => {
+                const config = CONFIG.SQUADS[key];
+                return `<div id="squad-card-${key}" class="glass-card p-4 rounded-lg space-y-3 flex flex-col">
+                    <h3 class="font-bold text-lg text-${config.color}-300 border-b border-${config.color}-500/50 pb-2"><i class="fas ${config.icon}"></i> ${config.name}</h3>
+                    <div class="font-mono text-sm grid grid-cols-2 text-center">
+                        <div><p class="text-gray-400">Pekerja</p><p id="squad-workers-${key}" class="font-semibold">0/${CONFIG.WORKERS_PER_SQUAD}</p></div>
+                        <div><p class="text-gray-400">Antrean</p><p id="squad-queue-${key}" class="font-semibold">0</p></div>
+                    </div>
+                    <div id="log-${key}" class="flex-grow h-64 bg-black/30 rounded-md p-2 text-xs overflow-y-auto font-mono scroll-smooth"></div>
+                </div>`;
+            },
+            updateAll(state) {
+                this.elements.workersCounter.textContent = `${Object.values(state.workers).reduce((a, b) => a + b, 0)}/${CONFIG.WORKERS_PER_SQUAD * Object.keys(CONFIG.SQUADS).length}`;
+                this.elements.queueCounter.textContent = Object.values(state.queues).reduce((acc, q) => acc + q.length, 0);
+                this.elements.processedCounter.textContent = state.processedCount;
+                this.elements.rulesCounter.textContent = state.rules.css.size + state.rules.network.size;
+                Object.keys(CONFIG.SQUADS).forEach(key => {
+                    const squadUI = this.elements.squads[key];
+                    if (!squadUI) return;
+                    squadUI.workers.textContent = `${state.workers[key]}/${CONFIG.WORKERS_PER_SQUAD}`;
+                    squadUI.queue.textContent = state.queues[key].length;
+                    if (App_Core.isCrawling && state.workers[key] > 0) squadUI.card.classList.add('pulse');
+                    else squadUI.card.classList.remove('pulse');
+                });
+            },
+            logMessage(target, message, type) {
+                const icons = { info: 'fa-info-circle text-blue-400', success: 'fa-check-circle text-green-400', error: 'fa-times-circle text-red-400', crawl: 'fa-spider text-yellow-400 blinking', special: 'fa-star text-purple-400' };
+                const entry = document.createElement('div');
+                entry.className = 'log-entry py-1 px-1';
+                entry.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle text-gray-400'} mr-2 w-4 text-center"></i>${message}`;
+                const logAndScroll = (logContainer) => {
+                    if (!logContainer) return;
+                    const isScrolledToBottom = logContainer.scrollHeight - logContainer.clientHeight <= logContainer.scrollTop + 5;
+                    logContainer.appendChild(entry.cloneNode(true));
+                    if (isScrolledToBottom) logContainer.scrollTop = logContainer.scrollHeight;
+                };
+                if (target === 'global') Object.values(this.elements.squads).forEach(squadUI => logAndScroll(squadUI.log));
+                else if (this.elements.squads[target]) logAndScroll(this.elements.squads[target].log);
+            },
+            showModal(content) { this.elements.modalContainer.innerHTML = content; this.elements.modalContainer.classList.remove('hidden'); },
+            hideModal() { this.elements.modalContainer.classList.add('hidden'); this.elements.modalContainer.innerHTML = ''; },
+            toggleControls(isCrawling) {
+                this.elements.startBtn.disabled = isCrawling; this.elements.stopBtn.disabled = !isCrawling;
+                [this.elements.apiKey, this.elements.urlInput, this.elements.addUrlBtn, this.elements.clearBtn, this.elements.viewDbBtn, this.elements.refreshFiltersBtn].forEach(el => { el.disabled = isCrawling; });
+            },
+            setButtonBusy(button, isBusy, busyText) {
+                if (isBusy) {
+                    button.classList.add('btn-busy');
+                    button.originalContent = button.innerHTML;
+                    button.innerHTML = `<i class="fas fa-sync-alt"></i><span>${busyText}</span>`;
+                } else {
+                    button.classList.remove('btn-busy');
+                    if(button.originalContent) button.innerHTML = button.originalContent;
+                }
+            },
+            setApiStatus(status, text) {
+                this.elements.apiStatusIndicator.className = `status-dot status-${status}`;
+                this.elements.apiStatusText.textContent = text;
+                const colorClass = { good: 'green', bad: 'red', working: 'yellow', idle: 'gray' }[status];
+                this.elements.apiStatusText.className = `text-xs mt-1 h-4 text-${colorClass}-400`;
+            },
+             setFilterStatus(filterName, status) {
+                const el = this.elements.filterListsStatus.querySelector(`#filter-status-${filterName.replace(/\s+/g, '')} .status-dot`);
+                if (el) el.className = `status-dot status-${status}`;
+            },
+        };
+
+        // --- 3. DATABASE MANAGER MODULE ---
+        const DB_Manager = {
+            db: null,
+            initialize() { this.db = new Dexie(CONFIG.DB_NAME); this.db.version(1).stores({ rules: '[type+value]', crawlState: 'key', config: 'key' }); },
+            async loadState() {
+                const [config, state, rules] = await Promise.all([this.db.config.get('main'), this.db.crawlState.get('main'), this.db.rules.toArray()]);
+                return { config, state, rules };
+            },
+            async saveState(state) {
+                 try {
+                    await this.db.config.put({ key: 'main', apiKey: UI_Manager.elements.apiKey.value });
+                    await this.db.crawlState.put({ key: 'main', queues: state.queues, visitedUrls: [...state.visitedUrls], processedCount: state.processedCount });
+                 } catch (e) { console.error("Failed to save state:", e); }
+            },
+            saveRule(type, value) { return this.db.rules.put({ type, value }); },
+            async clearAllData() { await this.db.delete(); this.initialize(); }
+        };
+
+        // --- 4. STATE MANAGER MODULE ---
+        const State_Manager = {
+            state: {},
+            initialize() {
+                this.state = {
+                    queues: {}, visitedUrls: new Set(), processedCount: 0,
+                    rules: { css: new Set(), network: new Set() }, workers: {},
+                };
+                Object.keys(CONFIG.SQUADS).forEach(key => {
+                    this.state.queues[key] = []; this.state.workers[key] = 0;
+                });
+            },
+            load(saved) {
+                if (saved.config) UI_Manager.elements.apiKey.value = saved.config.apiKey || '';
+                if (saved.state) {
+                    Object.keys(this.state.queues).forEach(q => this.state.queues[q] = saved.state.queues[q] || []);
+                    this.state.visitedUrls = new Set(saved.state.visitedUrls || []);
+                    this.state.processedCount = saved.state.processedCount || 0;
+                }
+                if (saved.rules) saved.rules.forEach(r => this.state.rules[r.type]?.add(r.value));
+            },
+            addUrlToQueue(url) {
+                if (this.state.visitedUrls.has(url) || Object.values(this.state.queues).flat().includes(url)) {
+                    UI_Manager.logMessage('manual', `URL sudah ada di dalam sistem.`, 'info'); return false;
+                }
+                const targetSquad = new URL(url).hostname.includes('youtube.com') ? 'youtube' : 'manual';
+                this.state.queues[targetSquad].push(url);
+                UI_Manager.logMessage(targetSquad, `URL manual ditambahkan: ${new URL(url).hostname}`, 'info');
+                return true;
+            },
+            addRule(type, value) {
+                if (this.state.rules[type].has(value)) return false;
+                this.state.rules[type].add(value); return true;
+            }
+        };
+
+        // --- 5. CORE LOGIC MODULES (Proxy, Filter, Analysis, Worker) ---
+        const Proxy_Manager = {
+            proxies: [],
+            initialize: async function() {
+                this.proxies = CONFIG.PROXY_LIST.map(url => ({ url, status: 'idle', latency: Infinity }));
+                UI_Manager.elements.proxyManagerStatus.innerHTML = '<p class="text-yellow-400">Menguji semua proxy...</p>';
+                await this.testAllProxies();
+            },
+            testAllProxies: async function() {
+                const promises = this.proxies.map(async (proxy) => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), CONFIG.PROXY_TEST_TIMEOUT);
+                    const startTime = Date.now();
+                    try {
+                        const testUrl = `${proxy.url}${encodeURIComponent(CONFIG.PROXY_TEST_URL)}`;
+                        // Beberapa proxy membutuhkan header spesifik, kita coba tanpa dulu untuk generalisasi
+                        await fetch(testUrl, { signal: controller.signal, mode: 'cors', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                        proxy.latency = Date.now() - startTime; proxy.status = 'good';
+                    } catch (e) { proxy.latency = Infinity; proxy.status = 'bad'; } finally { clearTimeout(timeoutId); }
+                });
+                await Promise.all(promises);
+                this.proxies.sort((a, b) => a.latency - b.latency); this.renderStatus();
+                UI_Manager.logMessage('global', `Proxy Manager: ${this.getLiveProxies().length}/${this.proxies.length} proxy online.`, 'info');
+            },
+            renderStatus: function() {
+                UI_Manager.elements.proxyManagerStatus.innerHTML = this.proxies.map(p => {
+                    let hostname;
+                    try { hostname = new URL(p.url).hostname; } catch { hostname = p.url; }
+                    return `<div class="flex justify-between items-center"><div><span class="status-dot status-${p.status} mr-2"></span>${hostname}</div><span class="text-gray-400">${p.latency === Infinity ? 'Offline' : `${p.latency}ms`}</span></div>`;
+                }).join('');
+            },
+            getLiveProxies: function() { return this.proxies.filter(p => p.status === 'good'); },
+            fetchWithProxy: async function(url) {
+                const liveProxies = this.getLiveProxies();
+                if (liveProxies.length === 0) throw new Error("Tidak ada proxy yang aktif.");
+                for (const proxy of liveProxies) {
+                    try {
+                        const response = await fetch(`${proxy.url}${encodeURIComponent(url)}`, { mode: 'cors' });
+                        if (!response.ok) throw new Error(`HTTP Status ${response.status}`); return response;
+                    } catch (error) {
+                        console.warn(`Proxy ${proxy.url} gagal untuk ${url}:`, error.message);
+                        proxy.status = 'bad'; proxy.latency = Infinity; this.renderStatus();
+                    }
+                } throw new Error(`Semua proxy aktif gagal mengambil ${url}`);
+            }
+        };
+
+        const Filter_Manager = {
+            async updateAll() {
+                UI_Manager.logMessage('global', 'Memuat daftar filter eksternal...', 'special');
+                let totalNewRules = 0;
+                const promises = Object.entries(CONFIG.FILTER_LISTS).map(async ([name, data]) => {
+                    UI_Manager.setFilterStatus(name, 'working');
+                    try {
+                        const response = await Proxy_Manager.fetchWithProxy(data.url);
+                        const text = await response.text();
+                        const { css, network } = this.parse(text);
+                        const rulePromises = [];
+                        css.forEach(rule => { if(State_Manager.addRule('css', rule)) rulePromises.push(DB_Manager.saveRule('css', rule)); });
+                        network.forEach(rule => { if(State_Manager.addRule('network', rule)) rulePromises.push(DB_Manager.saveRule('network', rule)); });
+                        await Promise.all(rulePromises);
+                        totalNewRules += rulePromises.length;
+                        UI_Manager.setFilterStatus(name, 'good');
+                    } catch (error) { console.error(`Gagal memuat ${name}:`, error); UI_Manager.setFilterStatus(name, 'bad'); }
+                });
+                await Promise.all(promises);
+                UI_Manager.logMessage('global', `Selesai. ${totalNewRules} aturan baru ditambahkan.`, 'success');
+            },
+            parse(text) {
+                const rules = { css: new Set(), network: new Set() };
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    let trimmed = line.trim();
+                    if (trimmed.includes('!')) { trimmed = trimmed.substring(0, trimmed.indexOf('!')); }
+                    if (trimmed.startsWith('!') || trimmed.startsWith('[') || trimmed.length < 3 || trimmed.startsWith('#')) continue;
+                    if (trimmed.includes('##') || trimmed.includes('#?#') || trimmed.includes('#$#')) {
+                        const selector = trimmed.split(/##|#\?#|#\$#/)[1];
+                        if (selector && !selector.includes(':style(')) rules.css.add(selector);
+                    } else if (trimmed.startsWith('||')) {
+                        rules.network.add(trimmed.substring(2).split('^')[0].split('$')[0].split('/')[0].split(':')[0]);
+                    } else if (!trimmed.includes('/') && trimmed.includes('.')) {
+                        rules.network.add(trimmed.split(/\s|#/)[0]);
+                    }
+                }
+                return { css: [...rules.css], network: [...rules.network] };
+            }
+        };
+
+        const Analysis_Engine = {
+            localHeuristic(htmlContent) {
+                const rules = { css: new Set(), network: new Set() };
+                const adKeywords = ['ad', 'ads', 'advert', 'banner', 'sponsor', 'promo', 'doubleclick', 'googlead', 'taboola', 'outbrain', 'affiliate', 'popup', 'interstitial', 'preroll', 'div-gpt-ad', 'ad-container', 'ad-wrapper', 'ad-slot'];
+                const classIdRegex = /(class|id)\s*=\s*["']([^"']*)["']/gi; let match;
+                while((match = classIdRegex.exec(htmlContent)) !== null) {
+                    const attributeValue = match[2];
+                    if(adKeywords.some(keyword => attributeValue.toLowerCase().includes(keyword))) {
+                        const selectors = attributeValue.split(/\s+/).filter(cls => adKeywords.some(kw => cls.toLowerCase().includes(kw)));
+                        selectors.forEach(sel => rules.css.add(`[class*="${sel}"]`));
+                    }
+                }
+                const srcRegex = /(src|href)\s*=\s*["']([^"']*)["']/gi;
+                while((match = srcRegex.exec(htmlContent)) !== null) {
+                    const url = match[2]; if(adKeywords.some(keyword => url.toLowerCase().includes(keyword))) { try { rules.network.add(new URL(url).hostname); } catch(e){} }
+                } return { css: [...rules.css], network: [...rules.network] };
+            },
+            async withGemini(url, htmlContent, isDeepAnalysis = false) {
+                 if (!App_Core.isApiKeyValid) throw new Error("Kunci API Gemini tidak valid atau tidak tersedia.");
+                let prompt;
+                const schema = { type: "OBJECT", properties: { css: { type: "ARRAY", items: { type: "STRING" } }, network: { type: "ARRAY", items: { type: "STRING" } }, links: { type: "ARRAY", items: { type: "STRING" } } }, required: ["css", "network", "links"] };
+                const htmlSnippet = htmlContent.substring(0, 4000);
+                if (isDeepAnalysis) { prompt = `DEEP ANALYSIS of URL "${url}". Based on this HTML snippet, identify generic, reusable, and robust ad-blocking patterns. Find CSS selectors for ad containers and network domains for ad-servers. Extract all unique hyperlinks. HTML snippet: \n\n${htmlSnippet}`; }
+                else { prompt = `Analyze URL "${url}". Based on this HTML snippet, find specific CSS selectors for ads, network filter keywords, and extract all unique hyperlinks. HTML snippet: \n\n${htmlSnippet}`; }
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } };
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${UI_Manager.elements.apiKey.value}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ error: { message: `HTTP error ${response.status}` } }));
+                    throw new Error(`Gemini API Error: ${errData.error?.message || response.statusText}`);
+                }
+                const result = await response.json();
+                if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) throw new Error("AI response was empty or blocked.");
+                // [ROBUSTNESS] Tambahkan try-catch untuk parsing JSON sebagai pengaman tambahan.
+                try {
+                    return JSON.parse(result.candidates[0].content.parts[0].text);
+                } catch (e) {
+                    console.error("Failed to parse Gemini JSON response:", e);
+                    throw new Error("Gagal mem-parsing respons dari AI. Format tidak valid.");
+                }
+            }
+        };
+
+        const Worker_Engine = {
+            tickInterval: null,
+            start() {
+                App_Core.isCrawling = true; UI_Manager.toggleControls(true);
+                UI_Manager.logMessage('global', 'Sistem Synapse diaktifkan. Memulai proses...', 'info');
+                this.tickInterval = setInterval(this._mainTick, CONFIG.TICK_INTERVAL);
+            },
+            stop() {
+                App_Core.isCrawling = false; clearInterval(this.tickInterval); UI_Manager.toggleControls(false);
+                UI_Manager.logMessage('global', 'Sistem dihentikan oleh pengguna. Status tersimpan.', 'info');
+                DB_Manager.saveState(State_Manager.state);
+            },
+            _mainTick() {
+                if (!App_Core.isCrawling) return;
+                const state = State_Manager.state;
+                if (Object.values(state.workers).reduce((a, b) => a + b, 0) < CONFIG.WORKERS_PER_SQUAD * Object.keys(CONFIG.SQUADS).length) {
+                    const squadPriorities = ['manual', 'youtube', 'discovery'];
+                    for (const squad of squadPriorities) {
+                        if (state.workers[squad] < CONFIG.WORKERS_PER_SQUAD && state.queues[squad].length > 0) {
+                            Worker_Engine._launchWorker(squad); return;
+                        }
+                    }
+                }
+                 if (App_Core.isApiKeyValid && state.workers.discovery === 0 && Date.now() - App_Core.lastDiscoveryTime > CONFIG.DISCOVERY_INTERVAL) {
+                    App_Core.lastDiscoveryTime = Date.now(); App_Core.findNewTargetsWithAI();
+                }
+                UI_Manager.updateAll(state);
+            },
+            _launchWorker(squad) {
+                const url = State_Manager.state.queues[squad].shift();
+                if (!url) return;
+                State_Manager.state.workers[squad]++;
+                UI_Manager.logMessage(squad, `[W] Menganalisis: ${new URL(url).hostname}`, 'crawl');
+                this._processUrl(url, squad).finally(() => {
+                    State_Manager.state.workers[squad]--;
+                    DB_Manager.saveState(State_Manager.state);
+                });
+            },
+            async _processUrl(url, squad) {
+                let newRulesCount = 0, newLinksCount = 0, analysisType = 'Lokal';
+                State_Manager.state.visitedUrls.add(url); State_Manager.state.processedCount++;
+                try {
+                    const response = await Proxy_Manager.fetchWithProxy(url);
+                    const htmlContent = await response.text();
+                    let combinedResult = { css: [], network: [], links: [] };
+                    const localResult = Analysis_Engine.localHeuristic(htmlContent);
+                    combinedResult.css.push(...localResult.css); combinedResult.network.push(...localResult.network);
+                    
+                    const isDeepScanTime = State_Manager.state.processedCount % CONFIG.DEEP_ANALYSIS_THRESHOLD === 0;
+                    if (App_Core.isApiKeyValid && isDeepScanTime) {
+                        analysisType = 'AI Deep Scan'; UI_Manager.logMessage(squad, `Ambang batas tercapai, memulai AI Deep Scan...`, 'special');
+                        const geminiResult = await Analysis_Engine.withGemini(url, htmlContent, true);
+                        combinedResult.css.push(...geminiResult.css); combinedResult.network.push(...geminiResult.network); combinedResult.links.push(...geminiResult.links);
+                    } else {
+                         const linkRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi; let match;
+                         while((match = linkRegex.exec(htmlContent)) !== null) combinedResult.links.push(match[2]);
+                    }
+                    
+                    const rulePromises = [];
+                    new Set(combinedResult.css).forEach(rule => { if(State_Manager.addRule('css', rule)) rulePromises.push(DB_Manager.saveRule('css', rule)); });
+                    new Set(combinedResult.network).forEach(rule => { if(State_Manager.addRule('network', rule)) rulePromises.push(DB_Manager.saveRule('network', rule)); });
+                    await Promise.all(rulePromises);
+                    newRulesCount = rulePromises.length;
+
+                    new Set(combinedResult.links).forEach(link => {
+                        try {
+                            const newUrl = new URL(link, url).href;
+                            if(State_Manager.state.visitedUrls.has(newUrl) || Object.values(State_Manager.state.queues).flat().includes(newUrl)) return;
+                            const targetSquad = new URL(newUrl).hostname.includes('youtube.com') ? 'youtube' : 'discovery';
+                            if(!State_Manager.state.queues[targetSquad].includes(newUrl)) { State_Manager.state.queues[targetSquad].push(newUrl); newLinksCount++; }
+                        } catch(e) {}
+                    });
+                    UI_Manager.logMessage(squad, `[${analysisType}] Sukses. Aturan: ${newRulesCount}, Tautan: ${newLinksCount}`, 'success');
+                } catch (error) { console.error(`Error processing ${url}:`, error); UI_Manager.logMessage(squad, `Gagal: ${new URL(url).hostname} (${error.message})`, 'error'); }
+            },
+        };
+
+        // --- 6. APP CORE (CONTROLLER) ---
+        const App_Core = {
+            isCrawling: false, isApiKeyValid: false, lastDiscoveryTime: 0,
+            async initialize() {
+                UI_Manager.initialize();
+                State_Manager.initialize();
+                DB_Manager.initialize();
+                await Proxy_Manager.initialize();
+                
+                const savedData = await DB_Manager.loadState();
+                State_Manager.load(savedData);
+                
+                if (State_Manager.state.rules.css.size + State_Manager.state.rules.network.size === 0) {
+                    if (Proxy_Manager.getLiveProxies().length > 0) {
+                        await this.handleRefreshFilters();
+                    } else { UI_Manager.logMessage('global', 'Tidak dapat memuat filter awal, tidak ada proxy aktif.', 'error'); }
+                } else {
+                     UI_Manager.logMessage('global', 'Memuat status filter dari cache...', 'info');
+                     Object.keys(CONFIG.FILTER_LISTS).forEach(name => UI_Manager.setFilterStatus(name, 'good'));
+                }
+                
+                UI_Manager.updateAll(State_Manager.state);
+                await this.validateApiKey();
+                this.setupEventListeners();
+                UI_Manager.logMessage('global', 'Sistem Synapse v9.1 siap.', 'success');
+            },
+            setupEventListeners() {
+                UI_Manager.elements.startBtn.addEventListener('click', () => Worker_Engine.start());
+                UI_Manager.elements.stopBtn.addEventListener('click', () => Worker_Engine.stop());
+                UI_Manager.elements.clearBtn.addEventListener('click', () => this.handleClear());
+                UI_Manager.elements.refreshFiltersBtn.addEventListener('click', () => this.handleRefreshFilters());
+                UI_Manager.elements.addUrlBtn.addEventListener('click', () => this.handleAddUrl());
+                UI_Manager.elements.viewDbBtn.addEventListener('click', () => this.handleViewRules());
+                UI_Manager.elements.apiKey.addEventListener('change', () => this.validateApiKey());
+                UI_Manager.elements.modalContainer.addEventListener('click', (e) => this.handleModalClick(e));
+            },
+            async validateApiKey() {
+                const key = UI_Manager.elements.apiKey.value.trim();
+                if (!key) { UI_Manager.setApiStatus('idle', 'API Key opsional'); this.isApiKeyValid = false; return; }
+                UI_Manager.setApiStatus('working', 'Memvalidasi...');
+                try {
+                    // Gunakan prompt yang sangat ringan untuk validasi
+                    const validationPrompt = "Say 'hello'.";
+                    const payload = { contents: [{ role: "user", parts: [{ text: validationPrompt }] }] };
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error('Respon tidak valid dari API.');
+                    UI_Manager.setApiStatus('good', 'Kunci API valid.'); this.isApiKeyValid = true;
+                } catch (error) { console.error("API Validation Error:", error); UI_Manager.setApiStatus('bad', 'Kunci tidak valid.'); this.isApiKeyValid = false; }
+            },
+            handleAddUrl() {
+                const url = UI_Manager.elements.urlInput.value.trim();
+                if(!this.isValidHttpUrl(url)) { UI_Manager.logMessage('manual', 'URL tidak valid.', 'error'); return; }
+                if (State_Manager.addUrlToQueue(url)) {
+                    UI_Manager.elements.urlInput.value = '';
+                    UI_Manager.updateAll(State_Manager.state);
+                    DB_Manager.saveState(State_Manager.state);
+                }
+            },
+            handleViewRules() {
+                 const modalContent = `
+                    <div class="glass-card w-full max-w-4xl max-h-[90vh] rounded-lg p-6 flex flex-col">
+                        <div class="flex justify-between items-center border-b border-gray-600 pb-3 mb-4">
+                            <h2 class="text-xl font-semibold text-white">Database Aturan</h2>
+                            <button data-action="close-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                        </div>
+                        <div class="flex-grow overflow-y-auto pr-2"><pre><code class="text-sm">${this.formatRulesForDisplay()}</code></pre></div>
+                        <div class="pt-4 mt-4 border-t border-gray-600"><button data-action="download-json" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"><i class="fas fa-download"></i> Unduh Database JSON</button></div>
+                    </div>`;
+                UI_Manager.showModal(modalContent);
+            },
+             handleClear() {
+                const modalContent = `
+                    <div class="glass-card p-6 rounded-lg text-center max-w-md">
+                        <h3 class="text-xl font-bold text-red-400 mb-4">Konfirmasi Hapus Arsip</h3>
+                        <p class="text-gray-300 mb-6">Tindakan ini akan menghapus permanen semua aturan, antrean, dan kunci API yang tersimpan. Anda yakin?</p>
+                        <div class="flex justify-center gap-4">
+                            <button data-action="confirm-delete" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-md">Ya, Hapus</button>
+                            <button data-action="close-modal" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">Batal</button>
+                        </div>
+                    </div>`;
+                UI_Manager.showModal(modalContent);
+            },
+            async handleRefreshFilters() {
+                UI_Manager.setButtonBusy(UI_Manager.elements.refreshFiltersBtn, true, 'Menyegarkan...');
+                try { await Filter_Manager.updateAll(); } 
+                catch (e) { UI_Manager.logMessage('global', 'Gagal menyegarkan filter: ' + e.message, 'error'); } 
+                finally { UI_Manager.setButtonBusy(UI_Manager.elements.refreshFiltersBtn, false); }
+            },
+            async handleModalClick(e) {
+                const target = e.target.closest('[data-action]');
+                if (!target && e.target.id !== 'modal-container') return;
+                const action = target ? target.dataset.action : 'close-modal';
+                
+                switch (action) {
+                    case 'close-modal': UI_Manager.hideModal(); break;
+                    case 'download-json': this.handleDownloadJson(); break;
+                    case 'confirm-delete':
+                        UI_Manager.hideModal();
+                        UI_Manager.setButtonBusy(UI_Manager.elements.clearBtn, true, 'Menghapus...');
+                        try {
+                            if(App_Core.isCrawling) Worker_Engine.stop();
+                            await DB_Manager.clearAllData();
+                            State_Manager.initialize();
+                            UI_Manager.updateAll(State_Manager.state);
+                            Object.keys(CONFIG.FILTER_LISTS).forEach(name => UI_Manager.setFilterStatus(name, 'idle'));
+                            await Proxy_Manager.initialize();
+                            UI_Manager.logMessage('global', 'Database telah dihapus. Inisialisasi ulang selesai.', 'success');
+                        } catch(err) { UI_Manager.logMessage('global', 'Gagal menghapus database: ' + err.message, 'error'); }
+                        finally { UI_Manager.setButtonBusy(UI_Manager.elements.clearBtn, false); }
+                        break;
+                }
+            },
+            formatRulesForDisplay() {
+                const state = State_Manager.state;
+                let str = `! Synapse DB Export - ${new Date().toISOString()}\n! Total Rules: ${state.rules.css.size + state.rules.network.size}\n\n`;
+                str += `! --- Aturan Elemen (${state.rules.css.size}) ---\n`;
+                [...state.rules.css].sort().forEach(s => str += `##${s}\n`);
+                str += `\n! --- Aturan Jaringan (${state.rules.network.size}) ---\n`;
+                [...state.rules.network].sort().forEach(f => str += `||${f}^\n`); return str;
+            },
+            handleDownloadJson() {
+                const state = State_Manager.state;
+                const dbJson = { metadata: { exportDate: new Date().toISOString(), rulesCount: state.rules.css.size + state.rules.network.size, processedUrls: state.processedCount }, rules: { cssSelectors: [...state.rules.css].sort(), networkFilters: [...state.rules.network].sort() } };
+                const blob = new Blob([JSON.stringify(dbJson, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `synapse_db_${Date.now()}.json`; a.click(); URL.revokeObjectURL(url); UI_Manager.hideModal();
+            },
+             isValidHttpUrl(string) { try { const url = new URL(string); return ['http:', 'https'].includes(url.protocol); } catch (_) { return false; }},
+             async findNewTargetsWithAI() {
+                UI_Manager.logMessage('discovery', 'Meminta target baru dari AI...', 'special');
+                State_Manager.state.workers.discovery++;
+                try {
+                    const prompt = "List 10 diverse URLs of websites known for using various types of ads (e.g., news, free streaming, blogs, forums). Provide only a JSON array of strings.";
+                    const result = await Analysis_Engine.withGemini("https://google.com", "<html></html>", false);
+                    const urls = result.links || [];
+                    if (!Array.isArray(urls)) throw new Error("AI response was not a valid array.");
+                    let added = 0;
+                    urls.forEach(url => { if(this.isValidHttpUrl(url) && State_Manager.addUrlToQueue(url)) added++; });
+                    UI_Manager.logMessage('discovery', `AI menyarankan ${added} target baru.`, 'success');
+                } catch(e) { console.error("Discovery Error:", e); UI_Manager.logMessage('discovery', `Gagal menemukan target: ${e.message}`, 'error'); }
+                finally { State_Manager.state.workers.discovery--; }
+            }
+        };
+
+        // --- APPLICATION ENTRY POINT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            App_Core.initialize().catch(error => {
+                console.error("Initialization failed:", error);
+                const container = document.getElementById('app-container');
+                if(container) container.innerHTML = `<div class="text-red-500 text-center p-8 glass-card rounded-lg">
+                    <h2 class="text-2xl font-bold mb-4">FATAL ERROR</h2>
+                    <p>Inisialisasi aplikasi gagal. Periksa konsol untuk detail teknis.</p>
+                    <p class="mt-2 text-sm text-gray-400">Pesan: ${error.message}</p>
+                </div>`;
+            });
         });
-        postMessage({ type: 'RESULT', payload: { url, ads: foundAds, links: Array.from(foundLinks) } });
-      } catch (error) {
-        postMessage({ type: 'ERROR', payload: { url, message: error.message } });
-      }
-    }
-  };
-  </script>
-  <script type="module">
-  const CONFIG = { LEARN_TRIGGER_COUNT: 10, GEMINI_MODEL: 'gemini-2.0-flash:generateContent' };
-  function sanitize(str) {
-    const temp = document.createElement('div');
-    temp.textContent = str;
-    return temp.innerHTML;
-  }
-  const UI = {
-    init() {
-      Object.assign(this, {
-        masterStatus: document.getElementById('master-status'),
-        geminiApiKeyInput: document.getElementById('gemini-api-key'),
-        startUrlInput: document.getElementById('start-url'),
-        workerCountInput: document.getElementById('worker-count'),
-        startBtn: document.getElementById('start-btn'),
-        stopBtn: document.getElementById('stop-btn'),
-        queueSize: document.getElementById('queue-size'),
-        pagesCrawled: document.getElementById('pages-crawled'),
-        adsDetected: document.getElementById('ads-detected'),
-        rulesEvolved: document.getElementById('rules-evolved'),
-        rulesTotal: document.getElementById('rules-total'),
-        workerStatusPanel: document.getElementById('worker-status-panel'),
-        geminiStatus: document.getElementById('gemini-status'),
-        geminiThought: document.getElementById('gemini-thought'),
-        heuristicsOutput: document.getElementById('heuristics-output'),
-        jsonOutput: document.getElementById('json-output'),
-        exportBtn: document.getElementById('export-json-btn'),
-        alertModal: document.getElementById('alert-modal'),
-        alertMessage: document.getElementById('alert-message')
-      });
-    },
-    showAlert(message) {
-      this.alertMessage.textContent = sanitize(message);
-      this.alertModal.classList.add('visible');
-      setTimeout(() => { this.alertModal.classList.remove('visible'); }, 2500);
-    },
-    logToWorker(workerId, message, colorClass) {
-      let workerEl = document.getElementById(`worker-${workerId}`);
-      if (!workerEl) {
-        workerEl = document.createElement('div');
-        workerEl.id = `worker-${workerId}`;
-        workerEl.innerHTML = `<div class="flex items-center"><span class="w-3 h-3 rounded-full mr-2"></span><span class="font-bold text-slate-300">PEKERJA ${workerId}:</span><span class="ml-2 truncate" style="max-width: 200px;"></span></div>`;
-        this.workerStatusPanel.prepend(workerEl);
-      }
-      workerEl.querySelector('.truncate').textContent = sanitize(message);
-      const statusDot = workerEl.querySelector('.w-3.h-3');
-      statusDot.className = `w-3 h-3 rounded-full mr-2 ${colorClass}`;
-      if (colorClass === 'bg-green-500') statusDot.classList.add('pulse-active');
-      else statusDot.classList.remove('pulse-active');
-    },
-    setSystemState(isOnline) {
-      this.startBtn.disabled = isOnline;
-      this.stopBtn.disabled = !isOnline;
-      [this.startUrlInput, this.workerCountInput, this.geminiApiKeyInput].forEach(el => el.disabled = isOnline);
-      this.masterStatus.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
-      this.masterStatus.style.color = isOnline ? 'var(--green)' : 'var(--red)';
-    },
-    updateStats(stats) {
-      this.queueSize.textContent = stats.queue.toLocaleString();
-      this.pagesCrawled.textContent = stats.crawled.toLocaleString();
-      this.adsDetected.textContent = stats.ads.toLocaleString();
-      this.rulesEvolved.textContent = stats.evolved.toLocaleString();
-      this.rulesTotal.textContent = stats.totalRules.toLocaleString();
-    },
-    updateHeuristicsDisplay: ruleset => UI.heuristicsOutput.textContent = JSON.stringify(ruleset, null, 2),
-    updateJsonOutput: db => UI.jsonOutput.textContent = JSON.stringify(db, null, 2),
-    updateGeminiStatus(status, thought) {
-      this.geminiStatus.textContent = status;
-      this.geminiThought.textContent = thought;
-    },
-    resetUI() {
-      this.workerStatusPanel.innerHTML = '';
-      this.updateJsonOutput([]);
-      this.updateStats({ queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: 0 });
-      this.updateGeminiStatus("IDLE", "Menunggu data baru untuk analisis...");
-    }
-  };
-  const AdDatabase = {
-    records: [],
-    learningBuffer: [],
-    add(record) {
-      this.records.push(record);
-      this.learningBuffer.push(record);
-      UI.updateJsonOutput(this.records);
-    },
-    clear() { this.records = []; this.learningBuffer = []; },
-    getLearningData() { const data = [...this.learningBuffer]; this.learningBuffer = []; return data; },
-    export() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.records, null, 2));
-      const a = document.createElement('a');
-      a.setAttribute("href", dataStr);
-      a.setAttribute("download", "garuda_ad_database_v8.4.json");
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-  };
-  const GeminiAdvisor = {
-    isLearning: false, apiKey: null,
-    async analyzeAndGenerateRule(adSnippets) {
-      if (this.isLearning || !this.apiKey) return null;
-      this.isLearning = true;
-      UI.updateGeminiStatus("ANALYZING", `Menganalisis ${adSnippets.length} cuplikan iklan...`);
-      const prompt = `You are an expert adblock rule creator. Analyze these HTML snippets of ads and find a new, common pattern. Generate ONE new, effective heuristic rule in the specified JSON format. Do not include ANY text, notes, or markdown outside the single, clean JSON object.
-HTML Snippets:
-${adSnippets.map(s => `Snippet:\n${s}\n---\n`).join('\n')}
-Rule format: {"id": "evolved-rule-TIMESTAMP", "description": "A concise description of the new pattern", "score": 15, "type": "urlKeyword|elementSelector|elementAttribute", "payload": ["value"] or {"selector": "value", "attribute": "value"}}`;
-      try {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}?key=${this.apiKey}`;
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-        if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || response.status}`);}
-        const result = await response.json();
-        if (!result.candidates?.[0]?.content?.parts?.[0]?.text) { throw new Error("Respons API tidak valid atau tidak mengandung teks."); }
-        const newRuleText = result.candidates[0].content.parts[0].text;
-        const jsonMatch = newRuleText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("Respons AI tidak mengandung JSON yang valid.");
-        const newRule = JSON.parse(jsonMatch[0]);
-        newRule.id = newRule.id.replace('TIMESTAMP', Date.now());
-        UI.updateGeminiStatus("SUCCESS", `Aturan baru '${newRule.id}' dibuat!`);
-        return newRule;
-      } catch (e) {
-        console.error("GeminiAdvisor Error:", e);
-        UI.updateGeminiStatus("ERROR", `Gagal menghasilkan aturan: ${e.message}`);
-        return null;
-      } finally {
-        this.isLearning = false;
-        setTimeout(() => UI.updateGeminiStatus("IDLE", "Menunggu data baru..."), 5000);
-      }
-    }
-  };
-  const HeuristicsEngine = {
-    ruleset: {},
-    loadGenesisRules() {
-      const rulesJSON = document.getElementById('default-heuristics').textContent;
-      this.ruleset = JSON.parse(rulesJSON);
-      UI.updateHeuristicsDisplay(this.ruleset);
-    },
-    evolve(newRule) {
-      if (!this.ruleset.rules.find(r => r.id === newRule.id)) {
-        this.ruleset.rules.push(newRule);
-        UI.updateHeuristicsDisplay(this.ruleset);
-        return true;
-      }
-      return false;
-    },
-    getRuleset: () => JSON.parse(JSON.stringify(HeuristicsEngine.ruleset))
-  };
-  const MasterController = {
-    isRunning: false, workers: [], queue: new Set(), visited: new Set(), idleWorkers: [],
-    stats: { queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: 0 },
-    cognitiveLoopInterval: null,
-    start(startUrl, workerCount, apiKey) {
-      if (this.isRunning) return;
-      if (!apiKey || !startUrl) { UI.showAlert("API Key dan URL Awal wajib diisi!"); return; }
-      this.isRunning = true;
-      GeminiAdvisor.apiKey = apiKey;
-      this.queue = new Set([startUrl]);
-      this.visited.clear(); this.workers = []; this.idleWorkers = [];
-      AdDatabase.clear();
-      UI.resetUI();
-      HeuristicsEngine.loadGenesisRules();
-      this.stats = { queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: HeuristicsEngine.getRuleset().rules.length };
-      UI.updateStats(this.stats);
-      UI.setSystemState(true);
-      const workerCode = document.getElementById('worker-script').textContent;
-      const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
-      const workerUrl = URL.createObjectURL(workerBlob);
-      for (let i = 1; i <= workerCount; i++) {
-        const worker = new Worker(workerUrl);
-        worker.id = i;
-        worker.onmessage = (e) => this.handleWorkerMessage(e.data, worker);
-        this.workers.push(worker);
-        this.idleWorkers.push(worker);
-        UI.logToWorker(i, "IDLE", 'bg-slate-500');
-      }
-      URL.revokeObjectURL(workerUrl);
-      this.cognitiveLoopInterval = setInterval(() => this.cognitiveLoop(), 10000);
-      this.dispatchTasks();
-    },
-    stop() {
-      if (!this.isRunning) return;
-      this.isRunning = false;
-      this.workers.forEach(worker => worker.terminate());
-      this.workers = []; this.idleWorkers = [];
-      clearInterval(this.cognitiveLoopInterval);
-      UI.setSystemState(false);
-    },
-    dispatchTasks() {
-      while (this.idleWorkers.length > 0 && this.queue.size > 0) {
-        const worker = this.idleWorkers.shift();
-        const url = this.queue.values().next().value;
-        this.queue.delete(url); this.visited.add(url);
-        worker.postMessage({ type: 'CRAWL', payload: { url, ruleset: HeuristicsEngine.getRuleset() } });
-      }
-      this.stats.queue = this.queue.size;
-      UI.updateStats(this.stats);
-    },
-    handleWorkerMessage(data, worker) {
-      const { type, payload } = data;
-      let isIdle = true;
-      switch(type) {
-        case 'STATUS':
-          isIdle = false;
-          UI.logToWorker(worker.id, new URL(payload.url).hostname, 'bg-green-500');
-          break;
-        case 'RESULT':
-          this.stats.crawled++;
-          payload.ads.forEach(ad => { this.stats.ads++; AdDatabase.add(ad); });
-          payload.links.forEach(link => { if (!this.visited.has(link)) this.queue.add(link); });
-          UI.logToWorker(worker.id, `Selesai: ${new URL(payload.url).hostname}`, 'bg-blue-500');
-          break;
-        case 'ERROR':
-          console.error(`Worker ${worker.id} Error:`, payload.message);
-          UI.logToWorker(worker.id, `Error: ${new URL(payload.url).hostname}`, 'bg-red-500');
-          break;
-      }
-      if(isIdle) { this.idleWorkers.push(worker); this.dispatchTasks(); }
-      UI.updateStats(this.stats);
-    },
-    async cognitiveLoop() {
-      if (AdDatabase.learningBuffer.length >= CONFIG.LEARN_TRIGGER_COUNT) {
-        const learningData = AdDatabase.getLearningData();
-        const snippets = learningData.map(d => d.snippet).filter(Boolean);
-        if(snippets.length === 0) return;
-        try {
-          const newRule = await GeminiAdvisor.analyzeAndGenerateRule(snippets);
-          if (newRule && HeuristicsEngine.evolve(newRule)) {
-            this.stats.evolved++;
-            this.stats.totalRules = HeuristicsEngine.getRuleset().rules.length;
-            UI.updateStats(this.stats);
-          }
-        } catch (e) { console.error("Gagal menjalankan siklus kognitif:", e); }
-      }
-    }
-  };
-  const App = {
-    init() {
-      UI.init();
-      HeuristicsEngine.loadGenesisRules();
-      UI.stats = { queue: 0, crawled: 0, ads: 0, evolved: 0, totalRules: HeuristicsEngine.getRuleset().rules.length };
-      UI.updateStats(UI.stats);
-      UI.startBtn.addEventListener('click', () => MasterController.start(UI.startUrlInput.value.trim(), parseInt(UI.workerCountInput.value, 10), UI.geminiApiKeyInput.value.trim() ));
-      UI.stopBtn.addEventListener('click', () => MasterController.stop());
-      UI.exportBtn.addEventListener('click', () => AdDatabase.export());
-    }
-  };
-  App.init();
-  </script>
+
+    </script>
 </body>
 </html>
